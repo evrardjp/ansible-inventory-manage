@@ -1,7 +1,7 @@
 This is a library to manipulate Ansible Inventories.
 
-It's independant of ansible by design, so that it doesn't need to track
-ansible code and is version independant.
+It's independent of ansible by design, so that it doesn't need to track
+ansible code and is version independent.
 
 It only relies on what ansible expects as inventories (the json structure),
 which hasn't changed for a long time now.
@@ -27,7 +27,7 @@ A standard inventory json is like this:
             children:[],
             hosts:[],
         }
-        groupname1:{
+        groupname2:{
             children:[],
             vars:{
                 var3: value3
