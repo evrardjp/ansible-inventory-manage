@@ -274,9 +274,36 @@ class TestInventory(object):
     def test_modify_hostvars(self):
         pass
 
+    def test_change_ip(self):
+        pass
+
     def test_deserialize(self):
         pass
 
     def test_flatten_inventory(self):
         pass
 
+    def test_io_equal(self):
+        """ Ensures that parsing the inventory
+        and outputting it without manipulation doesn't
+        change the structure
+        """
+        pass
+
+    def test_output_has_hostvars(self):
+        pass
+
+    def test_output_has_all_group(self):
+        pass
+
+    def test_output_expected_groups_present(self):
+        pass
+
+    def test_output_only_expected_host_groups_present(self):
+        pass
+
+    def test_output_expected_hostvar_present(self):
+        pass
+
+    def test_output_configured_groups_have_hosts(self):
+        pass
