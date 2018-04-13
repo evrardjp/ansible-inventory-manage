@@ -2,6 +2,9 @@ import itertools
 import copy
 
 
+from ansible_inventory_manage.names import Hostname, Groupname, Varname
+
+
 def mergedicts(dict1, dict2, prios=(0, 0)):
     """
     Merges dict2 into dict1 together.
@@ -43,24 +46,42 @@ def change_element_index(listname, oldindex, newindex):
     return listname
 
 
-class Group(object):
-    def __init__(self, groupname=None, groupvars=None, children=None,
-                 parents=None, hosts=None, priority=0):
-        if groupname is None:
-            raise Exception("Group name is required")
+class InventoryObject(object):
+    def __init__(self):
+        self.vars = {}
+        self.priority = 0
+
+    def set_var(self, varname, value):
+        self.vars[varname] = value
+
+    def set_vars(self, vardict, prio=0):
+        self.vars = dict(
+            mergedicts(self.vars, vardict, (self.priority, prio))
+        )
+
+
+class Group(InventoryObject):
+    """ A group of hosts, groups, and/or vars"""
+
+    __slots__ = ['name', 'vars', 'children', 'parents',
+                 'hosts', 'priority']
+
+    def __init__(self, name=None):
+        super(Group, self).__init__()
+        if not Groupname.is_valid_name(name):
+            raise Exception("Not a valid name")
         else:
-            self.groupname = groupname
-        self.groupvars = groupvars if groupvars is not None else {}
-        self.children = children if children is not None else []
+            self.name = name
+        self.children = []
         # Parents is not an ansible information, but it's useful for
         # global loop avoidance when deleting/renaming things.
-        self.parents = parents if parents is not None else []
-        self.hosts = hosts if hosts is not None else []
+        self.parents = []
+        self.hosts = []
         # For VARIABLE precedence resolving, we introduce a priority.
-        self.priority = priority
+        self.priority = 0
 
     def __repr__(self):
-        return "Group(groupname='%s')" % (self.groupname)
+        return "Group(name='%s')" % (self.name)
 
     def add_parent(self, parent):
         if parent is self:
@@ -141,22 +162,13 @@ class Group(object):
         )
 
     def delete(self, reparent_groups=False, reparent_vars=False):
+        if reparent_vars:
+            for parent in self.parents:
+                parent.set_vars(self.vars, self.priority)
         while len(self.children) != 0:
             if reparent_groups:
                 for parent in self.parents:
                     self.children[0].add_parent(parent)
-            if reparent_vars:
-                for parent in self.parents:
-                    parent.groupvars = dict(
-                        mergedicts(
-                            parent.groupvars,
-                            self.groupvars,
-                            prios=(
-                                parent.priority,
-                                self.priority
-                            )
-                        )
-                    )
             self.children[0].del_parent(self)
         while len(self.parents) != 0:
             self.parents[0].del_child(self)
@@ -164,20 +176,18 @@ class Group(object):
             self.hosts[0].del_group(self)
 
 
-class Host(object):
-    def __init__(self, hostname=None, hostvars=None, groups=None):
-        if hostname is None:
+class Host(InventoryObject):
+    def __init__(self, name=None):
+        if not Hostname.is_valid_name(name):
             raise Exception("Hostname cannot be empty")
         else:
-            self.hostname = hostname
-        self.hostvars = hostvars if hostvars is not None else {}
+            self.name = name
+        super(Host, self).__init__()
+        self.vars = {}
         self.groups = []
-        if groups is not None:
-            for group in groups:
-                self.add_group(group)
 
     def __repr__(self):
-        return "Host(hostname='%s')" % (self.hostname)
+        return "Host(name='%s')" % (self.name)
 
     def add_group(self, group):
         group.add_host(self)
@@ -246,15 +256,15 @@ class Inventory(object):
         for parent in groupinfo.get('parents', []):
             self.groups[groupname].add_parent(self.groups[parent])
         for new_vars in \
-                groupinfo.get('vars', {}), groupinfo.get('groupvars', {}):
+                groupinfo.get('vars', {}), groupinfo.get('vars', {}):
 
-            result = mergedicts(self.groups[groupname].groupvars,
+            result = mergedicts(self.groups[groupname].vars,
                                 new_vars,
                                 prios=(self.groups[groupname].priority,
                                        priority
                                        )
                                 )
-            self.groups[groupname].groupvars = dict(result)
+            self.groups[groupname].vars = dict(result)
 
     def del_group(self, groupname, reparent=False):
         pass

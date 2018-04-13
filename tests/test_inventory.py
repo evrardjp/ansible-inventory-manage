@@ -4,7 +4,7 @@ import ansible_inventory_manage.inventory
 
 
 def create_objects():
-    groupa, groupb = Group(groupname='groupa'), Group(groupname='groupb')
+    groupa, groupb = Group(name='groupa'), Group(name='groupb')
     hosta, hostb = Host('hosta'), Host('hostb')
     return (hosta, hostb, groupa, groupb)
 
@@ -130,15 +130,11 @@ def test_change_element_index():
 class TestHost(object):
     def test_create(self):
         a = Host('a')
-        assert a.hostname == 'a'
-        assert a.hostvars == dict()
-
-        hostvars = dict(bidule='machin')
-        b = Host('b', hostvars)
-        assert b.hostvars['bidule'] == 'machin'
+        assert a.name == 'a'
+        assert a.vars == dict()
 
     def test_create_with_no_hostname(self):
-        with pytest.raises(Exception) as excinfo:
+        with pytest.raises(Exception):
             Host()
 
     def test_add_group(self):
@@ -163,9 +159,9 @@ class TestHost(object):
 
     def test_rename(self):
         hosta, _, groupa, _ = create_objects()
-        hosta.hostname = 'babar'
+        hosta.name = 'babar'
         hosta.add_group(groupa)
-        assert groupa.hosts[0].hostname == 'babar'
+        assert groupa.hosts[0].name == 'babar'
 
     def test_delete(self):
         hosta = Host('hosta')
@@ -180,15 +176,28 @@ class TestHost(object):
     def test_update_hostvar(self):
         pass
 
+    def test_set_vars(self):
+        hostvars = dict(bidule='machin')
+        b = Host('b')
+        b.set_vars(hostvars)
+        assert b.vars['bidule'] == 'machin'
+
 
 class TestGroup(object):
     def test_create(self):
         a = Group('a')
-        assert a.groupname == 'a'
+        assert a.name == 'a'
 
-        groupvars = dict(babar='woot')
-        a = Group('b', groupvars=groupvars)
-        assert a.groupvars['babar'] == 'woot'
+    def test_set_var(self):
+        a = Group('a')
+        a.set_var('babar', 'woot')
+        assert a.vars['babar'] == 'woot'
+
+    def test_set_vars(self):
+        a = Group('a')
+        gvars = dict(babar='woot')
+        a.set_vars(gvars)
+        assert a.vars['babar'] == 'woot'
 
     def test_create_with_no_groupname(self):
         with pytest.raises(Exception):
@@ -196,7 +205,7 @@ class TestGroup(object):
 
     def test_repr(self):
         a = Group('a')
-        assert str(a) == "Group(groupname='a')"
+        assert str(a) == "Group(name='a')"
 
     def test_add_parent(self):
         """ Adds the groupb as parent of groupa """
@@ -249,8 +258,8 @@ class TestGroup(object):
 
     def test_rename(self):
         a, b = self.test_add_parent()
-        a.groupname = 'newgroupname'
-        assert b.children[0].groupname == 'newgroupname'
+        a.name = 'newgroupname'
+        assert b.children[0].name == 'newgroupname'
 
     def test_delete(self):
         a, b = self.test_add_parent()
@@ -261,9 +270,9 @@ class TestGroup(object):
         # assert "Deleting myself" in stdout
 
     def test_delete_with_reparent(self):
-        child1, child2 = Group(groupname='child1'), Group(groupname='child2')
-        mid = Group(groupname='mid')
-        parent1, parent2 = Group(groupname='par'), Group(groupname='par2')
+        child1, child2 = Group(name='child1'), Group(name='child2')
+        mid = Group(name='mid')
+        parent1, parent2 = Group(name='par'), Group(name='par2')
         for child in [child1, child2]:
             child.add_parent(mid)
         for par in [parent1, parent2]:
@@ -275,10 +284,10 @@ class TestGroup(object):
             assert mid not in child.parents
 
     def test_variables_are_saved_when_delete_with_reparent(self):
-        child1, child2 = Group(groupname='child1'), Group(groupname='child2')
-        mid = Group(groupname='mid')
-        mid.groupvars['groupvarname'] = 'value'
-        parent1, parent2 = Group(groupname='par'), Group(groupname='par2')
+        child1, child2 = Group(name='child1'), Group(name='child2')
+        mid = Group(name='mid')
+        mid.vars['groupvarname'] = 'value'
+        parent1, parent2 = Group(name='par'), Group(name='par2')
         for child in [child1, child2]:
             child.add_parent(mid)
         for par in [parent1, parent2]:
@@ -289,7 +298,7 @@ class TestGroup(object):
             assert parent2 in child.parents
             assert mid not in child.parents
         for parent in [parent1, parent2]:
-            assert parent.groupvars['groupvarname'] == 'value'
+            assert parent.vars['groupvarname'] == 'value'
 
     def test_update_groupvar(self):
         pass
