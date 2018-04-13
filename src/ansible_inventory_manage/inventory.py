@@ -86,12 +86,16 @@ class Group(InventoryObject):
     def add_parent(self, parent):
         if parent is self:
             raise Exception("Cannot add yourself as parent")
+        if not isinstance(parent, Group):
+            raise TypeError("%s is not a group" % parent)
         if parent not in self.parents:
             self.parents.append(parent)
         if self not in parent.children:
             parent.children.append(self)
 
     def del_parent(self, parent):
+        if not isinstance(parent, Group):
+            raise TypeError("%s is not a group" % parent)
         if parent in self.parents:
             self.parents.remove(parent)
         if self in parent.children:
@@ -103,6 +107,8 @@ class Group(InventoryObject):
         newparent.add_child(self)
 
     def add_child(self, child):
+        if not isinstance(child, Group):
+            raise TypeError("%s is not a group" % child)
         if child is self:
             raise Exception("Cannot add yourself as child")
         if child not in self.children:
@@ -111,6 +117,8 @@ class Group(InventoryObject):
             child.parents.append(self)
 
     def del_child(self, child):
+        if not isinstance(child, Group):
+            raise TypeError("%s is not a group" % child)
         if child in self.children:
             self.children.remove(child)
         if self in child.parents:
@@ -121,12 +129,16 @@ class Group(InventoryObject):
         newchild.add_parent(self)
 
     def add_host(self, host):
+        if not isinstance(host, Host):
+            raise TypeError("%s is not a host" % host)
         if host not in self.hosts:
             self.hosts.append(host)
         if self not in host.groups:
             host.groups.append(self)
 
     def del_host(self, host):
+        if not isinstance(host, Host):
+            raise TypeError("%s is not a host" % host)
         if host in self.hosts:
             self.hosts.remove(host)
         if self in host.groups:

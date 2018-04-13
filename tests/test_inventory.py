@@ -175,7 +175,9 @@ class TestHost(object):
         assert len(groupb.hosts) == 0
 
     def test_update_hostvar(self):
-        pass
+        hosta = Host('hosta')
+        hosta.set_var('a', 'valuea')
+        assert hosta.vars['a'] == 'valuea'
 
     def test_set_vars(self):
         hostvars = dict(bidule='machin')
@@ -223,12 +225,22 @@ class TestGroup(object):
         with pytest.raises(Exception):
             groupa.add_parent(groupa)
 
+    def test_add_invild_parent(self):
+        groupa = Group('groupa')
+        with pytest.raises(TypeError):
+            groupa.add_parent("babar")
+
     def test_remove_parent(self):
         """ Removes groupb of previous set of parents """
         groupa, groupb = self.test_add_parent()
         groupa.del_parent(groupb)
         assert groupb not in groupa.parents
         assert groupa not in groupb.children
+
+    def test_remove_invalid_parent(self):
+        groupa, groupb = self.test_add_parent()
+        with pytest.raises(TypeError):
+            groupa.del_parent("babar")
 
     def test_remove_self_as_parent(self):
         """
@@ -302,28 +314,56 @@ class TestGroup(object):
             assert parent.vars['groupvarname'] == 'value'
 
     def test_update_groupvar(self):
-        pass
-
-    def test_reorder_parents(self):
-        pass
-
-    def test_reorder_children(self):
-        pass
+        gr1 = Group(name='g1')
+        gr1.vars['a'] = 'va'
+        gr1.set_var('b', 'vb')
+        assert gr1.vars == {'a': 'va', 'b': 'vb'}
 
     def test_add_child(self):
-        pass
+        child1, a = Group(name='child1'), Group(name='a')
+        a.add_child(child1)
+        assert a.children[0].name == 'child1'
+
+    def test_add_invalidchild(self):
+        a = Group(name='a')
+        with pytest.raises(TypeError):
+            a.add_child("bazar")
 
     def test_add_self_as_child(self):
-        pass
+        child1, a = Group(name='child1'), Group(name='a')
+        with pytest.raises(Exception):
+            a.add_child(a)
 
     def test_remove_child(self):
-        pass
+        child1, a = Group(name='child1'), Group(name='a')
+        a.add_child(child1)
+        assert a.children[0].name == 'child1'
+        a.del_child(child1)
+
+    def test_remove_invalid_child(self):
+        child1, a = Group(name='child1'), Group(name='a')
+        a.add_child(child1)
+        assert a.children[0].name == 'child1'
+        with pytest.raises(TypeError):
+            a.del_child("qw")
+
+    def test_remove_notpresent_child(self):
+        child1, a = Group(name='child1'), Group(name='a')
+        a.add_child(child1)
+        assert a.children[0].name == 'child1'
+        a.del_child(child1)
+        assert len(a.children) == 0
+        try:
+            a.del_child(child1)
+        except Exception:
+            raise pytest.fail("Should not failed")
 
     def test_replace_child(self):
-        pass
-
-    def test_remove_self_as_child(self):
-        pass
+        child1, child2 = Group(name='child1'), Group(name='child2')
+        mid = Group(name='mid')
+        mid.add_child(child1)
+        mid.replace_child(child1, child2)
+        assert mid.children[0].name == 'child2'
 
     def test_has_cyle(self):
         pass
@@ -331,6 +371,65 @@ class TestGroup(object):
     def test_has_no_cycle(self):
         pass
 
+    def test_reorder_parents(self):
+        parent1, parent2 = Group(name='par1'), Group(name='par2')
+        a = Group('a')
+        a.add_parent(parent1)
+        a.add_parent(parent2)
+        a.reorder_parents(1, 0)
+        assert a.parents[0].name == 'par2'
+        assert a.parents[1].name == 'par1'
+
+    def test_reorder_children(self):
+        child1, child2 = Group(name='child1'), Group(name='child2')
+        a = Group('a')
+        a.add_child(child1)
+        a.add_child(child2)
+        a.reorder_children(1, 0)
+        assert a.children[0].name == 'child2'
+        assert a.children[1].name == 'child1'
+
+    def test_add_invalid_host(self):
+        groupa = Group('groupa')
+        with pytest.raises(TypeError):
+            groupa.add_host('a')
+
+    def test_add_host(self):
+        groupa = Group('groupa')
+        hosta = Host('a')
+        groupa.add_host(hosta)
+        assert groupa.hosts[0].name == 'a'
+
+    def test_remove_host(self):
+        groupa = Group('groupa')
+        hosta = Host('a')
+        groupa.add_host(hosta)
+        assert groupa.hosts[0].name == 'a'
+        groupa.del_host(hosta)
+        assert len(groupa.hosts) == 0
+
+    def test_remove_invalid_host(self):
+        groupa = Group('groupa')
+        with pytest.raises(TypeError):
+            groupa.del_host('q')
+
+    def test_remove_no_host_anymore(self):
+        groupa = Group('groupa')
+        hosta = Host('a')
+        groupa.add_host(hosta)
+        assert groupa.hosts[0].name == 'a'
+        groupa.del_host(hosta)
+        groupa.del_host(hosta)
+
+    def test_remove_group_from_hosts(self):
+        groupa = Group('groupa')
+        hosta, hostb = Host('a'), Host('b')
+        hosta.add_group(groupa)
+        hostb.add_group(groupa)
+        assert len(groupa.hosts) == 2
+        groupa.delete()
+        assert len(hosta.groups) == 0
+        assert len(hostb.groups) == 0
 
 # Inventory
 class TestInventory(object):
