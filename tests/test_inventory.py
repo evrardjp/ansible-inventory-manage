@@ -1,5 +1,6 @@
 import pytest
 from ansible_inventory_manage.inventory import Host, Group, Inventory
+from ansible_inventory_manage.inventory import InventoryObject
 import ansible_inventory_manage.inventory
 
 
@@ -120,10 +121,10 @@ def test_mergedicts(a, b, prios, expected):
     assert dict(result) == expected
 
 
-def test_change_element_index():
-    assert ['b', 'a', 'c'] == \
-        ansible_inventory_manage.inventory.change_element_index([
-            'a', 'b', 'c'], 1, 0)
+class TestInventoryObject(object):
+    def test_change_element_index(self):
+        assert ['b', 'a', 'c'] == \
+            InventoryObject.change_element_index(['a', 'b', 'c'], 1, 0)
 
 
 # Test hosts changes

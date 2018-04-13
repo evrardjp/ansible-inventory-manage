@@ -2,7 +2,7 @@ import itertools
 import copy
 
 
-from ansible_inventory_manage.names import Hostname, Groupname, Varname
+import ansible_inventory_manage.validations as validate
 
 
 def mergedicts(dict1, dict2, prios=(0, 0)):
@@ -33,23 +33,15 @@ def mergedicts(dict1, dict2, prios=(0, 0)):
             yield (k, dict2[k])
 
 
-def change_element_index(listname, oldindex, newindex):
-    """
-    This method is used to modify the order,
-    by changing an item from its old position
-    to a new position, keeping the rest of the
-    list intact. This is useful for altering the
-    group variable flattening: the flattening is done by
-    browsing the lists. (Last match wins if tie)
-    """
-    listname.insert(newindex, listname.pop(oldindex))
-    return listname
-
-
 class InventoryObject(object):
     def __init__(self):
+        self.name = None
         self.vars = {}
+        # For VARIABLE precedence resolving, we introduce a priority.
         self.priority = 0
+
+    def __repr__(self):
+        return "%s(name='%s')" % (self.__class__.__name__, self.name)
 
     def set_var(self, varname, value):
         self.vars[varname] = value
@@ -58,6 +50,19 @@ class InventoryObject(object):
         self.vars = dict(
             mergedicts(self.vars, vardict, (self.priority, prio))
         )
+
+    @staticmethod
+    def change_element_index(listname, oldindex, newindex):
+        """
+        This method is used to modify the order,
+        by changing an item from its old position
+        to a new position, keeping the rest of the
+        list intact. This is useful for altering the
+        group variable flattening: the flattening is done by
+        browsing the lists. (Last match wins if tie)
+        """
+        listname.insert(newindex, listname.pop(oldindex))
+        return listname
 
 
 class Group(InventoryObject):
@@ -68,7 +73,7 @@ class Group(InventoryObject):
 
     def __init__(self, name=None):
         super(Group, self).__init__()
-        if not Groupname.is_valid_name(name):
+        if not validate.is_valid_name(name):
             raise Exception("Not a valid name")
         else:
             self.name = name
@@ -77,11 +82,6 @@ class Group(InventoryObject):
         # global loop avoidance when deleting/renaming things.
         self.parents = []
         self.hosts = []
-        # For VARIABLE precedence resolving, we introduce a priority.
-        self.priority = 0
-
-    def __repr__(self):
-        return "Group(name='%s')" % (self.name)
 
     def add_parent(self, parent):
         if parent is self:
@@ -137,7 +137,7 @@ class Group(InventoryObject):
         The children are a list, and
         remember the order of inclusion.
         """
-        self.children = change_element_index(
+        self.children = self.change_element_index(
             self.children,
             oldindex,
             newindex
@@ -155,7 +155,7 @@ class Group(InventoryObject):
         rendering values when doing the last
         host flattening (Last match wins if tie).
         """
-        self.parents = change_element_index(
+        self.parents = self.change_element_index(
             self.parents,
             oldindex,
             newindex
@@ -178,16 +178,12 @@ class Group(InventoryObject):
 
 class Host(InventoryObject):
     def __init__(self, name=None):
-        if not Hostname.is_valid_name(name):
-            raise Exception("Hostname cannot be empty")
+        super(Host, self).__init__()
+        if not validate.is_valid_host(name):
+            raise Exception("Invalid host name")
         else:
             self.name = name
-        super(Host, self).__init__()
-        self.vars = {}
         self.groups = []
-
-    def __repr__(self):
-        return "Host(name='%s')" % (self.name)
 
     def add_group(self, group):
         group.add_host(self)
@@ -196,16 +192,16 @@ class Host(InventoryObject):
         group.del_host(self)
 
     def reorder_groups(self, oldindex, newindex):
-        pass
+        self.groups = self.change_element_index(
+            self.groups,
+            oldindex,
+            newindex
+        )
 
     def delete(self):
         while len(self.groups) != 0:
             group = self.groups[0]
-            print("current group is %s" % group)
             group.del_host(self)
-            print("current group list %s" % self.groups)
-            print("end of iteration, next!")
-        print("done")
 
 
 class Inventory(object):
@@ -246,7 +242,7 @@ class Inventory(object):
             self.add_group(subgroup)
         priority = groupinfo.get('priority', 0)
         if is_new_group:
-            self.groups[groupname] = Group(groupname=groupname)
+            self.groups[groupname] = Group(name=groupname)
             # Don't update priority when updating an existing group, unless
             # explicity told so in a separate function
             self.set_group_priority(groupname, priority)
