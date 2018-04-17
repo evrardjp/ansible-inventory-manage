@@ -231,10 +231,10 @@ class Host(InventoryObject):
 
 class Inventory(object):
     def __init__(self):
-        ungrouped = Group('ungrouped')
-        allgroup = Group('all')
+        ungrouped = Group(u'ungrouped')
+        allgroup = Group(u'all')
         allgroup.add_child(ungrouped)
-        self.groups = {'all': allgroup, 'ungrouped': ungrouped}
+        self.groups = {u'all': allgroup, u'ungrouped': ungrouped}
         self.hosts = {}
 
     def load_inventoryjson(self, jsoncontent):
