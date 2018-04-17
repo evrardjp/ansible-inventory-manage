@@ -1,3 +1,4 @@
+import json
 import pytest
 from ansible_inventory_manage.inventory import Host, Group, Inventory
 from ansible_inventory_manage.inventory import InventoryObject
@@ -8,7 +9,6 @@ def create_objects():
     groupa, groupb = Group(name='groupa'), Group(name='groupb')
     hosta, hostb = Host('hosta'), Host('hostb')
     return (hosta, hostb, groupa, groupb)
-
 
 testmergedicts_data = [
     (
@@ -44,6 +44,27 @@ testmergedicts_data = [
         dict(a='b'),
         (-1, 0),
         dict(a='b')
+    ),
+    # test dict is dropping its k/v
+    (
+        dict(a='a'),
+        dict(b='b'),
+        (-999, 0),
+        dict(b='b')
+    ),
+    # test dict is dropping its k/v
+    (
+        dict(a='a'),
+        dict(b='b'),
+        (0, -999),
+        dict(a='a')
+    ),
+    # test dict is dropping its k/v
+    (
+        dict(a='a'),
+        dict(b='b'),
+        (-999, -999),
+        dict()
     ),
     # test sub dict std merge
     (
@@ -114,12 +135,16 @@ testmergedicts_data = [
     ),
 ]
 
-
 @pytest.mark.parametrize("a,b,prios,expected", testmergedicts_data)
 def test_mergedicts(a, b, prios, expected):
     result = ansible_inventory_manage.inventory.mergedicts(a, b, prios)
     assert dict(result) == expected
 
+def test_merge_dicts_with_invalid_prios():
+    a = {'a', '1'}
+    b = {'a': '3'}
+    with pytest.raises(TypeError):
+        dict(ansible_inventory_manage.inventory.mergedicts(a, b, prios=('a', 'b')))
 
 class TestInventoryObject(object):
     def test_change_element_index(self):
@@ -133,6 +158,14 @@ class TestHost(object):
         a = Host('a')
         assert a.name == 'a'
         assert a.vars == dict()
+
+        b = Host(name='a')
+        assert b.name == 'a'
+        assert b.vars == dict()
+
+    def test_show_host(self):
+        a = Host(name='a')
+        assert a.__repr__() == "Host(name='a')"
 
     def test_create_with_no_hostname(self):
         with pytest.raises(Exception):
@@ -184,6 +217,15 @@ class TestHost(object):
         b = Host('b')
         b.set_vars(hostvars)
         assert b.vars['bidule'] == 'machin'
+
+    def test_reorder_groups(self):
+        a, b = Group('a'), Group('b')
+        h1 = Host('h1')
+        h1.add_group(a)
+        h1.add_group(b)
+        h1.reorder_groups(1,0)
+        assert h1.groups[0].name == 'b'
+        assert h1.groups[1].name == 'a'
 
 
 class TestGroup(object):
@@ -238,7 +280,7 @@ class TestGroup(object):
         assert groupa not in groupb.children
 
     def test_remove_invalid_parent(self):
-        groupa, groupb = self.test_add_parent()
+        groupa, _ = self.test_add_parent()
         with pytest.raises(TypeError):
             groupa.del_parent("babar")
 
@@ -274,7 +316,7 @@ class TestGroup(object):
         a.name = 'newgroupname'
         assert b.children[0].name == 'newgroupname'
 
-    def test_delete(self):
+    def test_delete_no_reparent(self):
         a, b = self.test_add_parent()
         b.delete()
         assert a.parents == []
@@ -282,7 +324,7 @@ class TestGroup(object):
         # stdout, stderr = capfd.readouterr()
         # assert "Deleting myself" in stdout
 
-    def test_delete_with_reparent(self):
+    def test_delete_reparent_groups(self):
         child1, child2 = Group(name='child1'), Group(name='child2')
         mid = Group(name='mid')
         parent1, parent2 = Group(name='par'), Group(name='par2')
@@ -296,7 +338,16 @@ class TestGroup(object):
             assert parent2 in child.parents
             assert mid not in child.parents
 
-    def test_variables_are_saved_when_delete_with_reparent(self):
+    def test_delete_reparent_hosts(self):
+        g1, g2 = Group(name='todelete'), Group(name='parent')
+        host1 = Host(name='host')
+        host1.add_group(g1)
+        g1.add_parent(g2)
+        g1.delete(reparent_hosts=True)
+        assert g2 in host1.groups
+        assert g1 not in host1.groups
+
+    def test_delete_reparent_vars(self):
         child1, child2 = Group(name='child1'), Group(name='child2')
         mid = Group(name='mid')
         mid.vars['groupvarname'] = 'value'
@@ -305,11 +356,7 @@ class TestGroup(object):
             child.add_parent(mid)
         for par in [parent1, parent2]:
             mid.add_parent(par)
-        mid.delete(reparent_groups=True, reparent_vars=True)
-        for child in [child1, child2]:
-            assert parent1 in child.parents
-            assert parent2 in child.parents
-            assert mid not in child.parents
+        mid.delete(reparent_vars=True)
         for parent in [parent1, parent2]:
             assert parent.vars['groupvarname'] == 'value'
 
@@ -330,7 +377,7 @@ class TestGroup(object):
             a.add_child("bazar")
 
     def test_add_self_as_child(self):
-        child1, a = Group(name='child1'), Group(name='a')
+        a = Group(name='a')
         with pytest.raises(Exception):
             a.add_child(a)
 
@@ -431,14 +478,33 @@ class TestGroup(object):
         assert len(hosta.groups) == 0
         assert len(hostb.groups) == 0
 
+
 # Inventory
+inventory_data =[
+    (
+        'tests/simple.json',
+        [],
+        ['localhost'],
+    ),
+    (
+        'tests/small.json',
+        ['glance_api', 'glance_registry'],
+        ['localhost', 'localhost2'],
+    ),
+]
 class TestInventory(object):
-    def test_loadjson(self):
+    @pytest.mark.parametrize("fname,groups,hosts", inventory_data)
+    def test_input_loadjson(self, fname, groups, hosts):
         """
         Deserializes a json file, and
         checks if the inventory is as expected
         """
-        pass
+        with open(fname,'r') as fd:
+            fcon = json.loads(fd.read())
+        inventory = Inventory()
+        inventory.load_inventoryjson(fcon)
+        assert inventory.count_groups() == len(groups)
+        assert inventory.count_hosts() == len(hosts)
 
     def test_new_group(self):
         """

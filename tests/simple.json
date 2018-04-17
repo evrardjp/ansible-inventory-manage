@@ -1,0 +1,18 @@
+{
+    "_meta": {
+        "hostvars": {
+            "localhost": {
+            }
+        }
+    },
+    "all": {
+        "children": [
+            "ungrouped"
+        ]
+    },
+    "ungrouped": {
+        "hosts": [
+            "localhost"
+        ]
+    }
+}

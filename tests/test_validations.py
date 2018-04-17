@@ -6,7 +6,7 @@ class TestNames(object):
     def test_valid_names(self):
         assert validate.is_valid_name('a')
         assert not validate.is_valid_name()
-        
+
     def test_valid_hostnames(self):
         assert validate.is_valid_host('a')
         assert not validate.is_valid_host('_')
