@@ -1,0 +1,35 @@
+{
+    "_meta": {
+        "hostvars": {
+            "localhost": {
+                "ansible_connection": "local"
+            },
+            "localhost2": {
+                "ansble_connection": "local"
+            }
+        }
+    },
+    "all": {
+        "children": [
+            "glance_all",
+            "ungrouped"
+        ]
+    },
+    "glance_all": {
+        "children": [
+            "glance_api",
+            "glance_registry"
+        ]
+    },
+    "glance_api": {
+        "hosts": [
+            "localhost"
+        ]
+    },
+    "glance_registry": {
+        "hosts": [
+            "localhost2"
+        ]
+    },
+    "ungrouped": {}
+}

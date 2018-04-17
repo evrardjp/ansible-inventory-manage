@@ -488,7 +488,7 @@ inventory_data =[
     ),
     (
         'tests/small.json',
-        ['glance_api', 'glance_registry'],
+        ['glance_all', 'glance_api', 'glance_registry'],
         ['localhost', 'localhost2'],
     ),
 ]
