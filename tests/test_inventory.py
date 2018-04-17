@@ -510,17 +510,25 @@ class TestInventory(object):
         """
         Ensure you can add a group to the inventory
         """
-        print(inventoryloader.groups)
         inventoryloader.add_group(u'newgroup')
         assert 'newgroup' in inventoryloader.groups
 
-    def test_add_existing_group(self):
+    def test_add_existing_group(self, inventoryloader):
         """
         Adding a group with the same name as an
         existing one should update the existing
         by default
         """
-        pass
+        grp_cnt = inventoryloader.count_groups()
+        grp_vars = inventoryloader.groups['glance_api'].vars
+        inventoryloader.add_group(u'glance_api')
+        assert inventoryloader.count_groups() == grp_cnt
+        assert inventoryloader.groups['glance_api'].vars == grp_vars
+        assert 'br-mgmt' == inventoryloader.groups['glance_api'].vars['management_bridge']
+        inventoryloader.add_group(u'glance_api', {"vars": { u'external_bridge': u'br-ext'}})
+        assert 'br-mgmt' == inventoryloader.groups['glance_api'].vars['management_bridge']
+        assert 'br-ext' == inventoryloader.groups['glance_api'].vars['external_bridge']
+
 
     def test_add_existing_group_unauthorized(self):
         """
