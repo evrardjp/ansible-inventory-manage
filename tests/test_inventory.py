@@ -506,11 +506,13 @@ class TestInventory(object):
         assert inventory.count_groups() == len(groups)
         assert inventory.count_hosts() == len(hosts)
 
-    def test_new_group(self):
+    def test_new_group(self, inventoryloader):
         """
         Ensure you can add a group to the inventory
         """
-        pass
+        print(inventoryloader.groups)
+        inventoryloader.add_group(u'newgroup')
+        assert 'newgroup' in inventoryloader.groups
 
     def test_add_existing_group(self):
         """
@@ -523,6 +525,7 @@ class TestInventory(object):
     def test_add_existing_group_unauthorized(self):
         """
         Do not add a group if it's already existing
+        if allow_update is set to False
         """
         pass
 
