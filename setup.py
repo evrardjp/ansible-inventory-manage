@@ -15,7 +15,7 @@ setup(
     package_dir={'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
     tests_require=['pytest', 'tox'],
-    install_requires=[],
+    install_requires=['future'],
     classifiers=[
         'Environment :: OpenStack',
         'Intended Audience :: Information Technology',

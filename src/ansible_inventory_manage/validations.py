@@ -1,3 +1,5 @@
+from past.builtins import basestring    # pip install future
+
 def is_valid_name(name=None):
     if name and isinstance(name, basestring):
         return True
