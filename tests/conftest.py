@@ -5,7 +5,7 @@ import ansible_inventory_manage.inventory
 
 inventory_file = 'tests/small.json'
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def inventoryloader():
     """
     Loads a standard inventory that

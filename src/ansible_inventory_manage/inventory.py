@@ -198,6 +198,11 @@ class Group(InventoryObject):
         while len(self.parents) != 0:
             self.parents[0].del_child(self)
 
+    def has_host(self, hostname):
+        return any([True for host in self.hosts if host.name == hostname])
+
+    def has_group(self, groupname):
+        return any([True for group in self.children + self.parents if group.name == groupname])
 
 class Host(InventoryObject):
 
@@ -227,6 +232,9 @@ class Host(InventoryObject):
         while len(self.groups) != 0:
             group = self.groups[0]
             group.del_host(self)
+
+    def has_group(self, groupname):
+        return any([True for group in self.groups if group.name == groupname])
 
 
 class Inventory(object):
@@ -266,7 +274,7 @@ class Inventory(object):
             self._process_groupadd(groupname, groupinfo, is_new_group)
         elif groupinfo:
             # The group exists AND the updates are not allowed
-            raise KeyError
+            raise ValueError
 
     def _process_groupadd(self, groupname, groupinfo=None, is_new_group=False):
         try:
@@ -302,7 +310,8 @@ class Inventory(object):
 
     def del_group(self, groupname, **kwargs):
         if groupname in self.groups:
-            self.groups[groupname].delete(**kwargs)
+            grouptodelete = self.groups.pop(groupname)
+            grouptodelete.delete(**kwargs)
 
     def rename_group(self, groupname, newgroupname):
         if groupname in self.groups:
@@ -329,6 +338,7 @@ class Inventory(object):
             # No need to pass kwargs, removing host doesn't need
             # reparenting or anything.
             self.hosts[hostname].delete()
+        del self.hosts[hostname]
 
     def rename_host(self, hostname, newhostname):
         self.hosts[newhostname] = self.hosts.pop(hostname)

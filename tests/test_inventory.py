@@ -227,6 +227,12 @@ class TestHost(object):
         assert h1.groups[0].name == 'b'
         assert h1.groups[1].name == 'a'
 
+    def test_has_group(self):
+        g1, h1 = Group('g1'), Host('h1')
+        g1.add_host(h1)
+        assert h1.has_group('g1')
+        assert not h1.has_group('u2')
+
 
 class TestGroup(object):
     def test_create(self):
@@ -478,6 +484,24 @@ class TestGroup(object):
         assert len(hosta.groups) == 0
         assert len(hostb.groups) == 0
 
+    def test_has_host(self):
+        g1, h1  = Group('g1'), Host('h1')
+        g1.add_host(h1)
+        assert g1.has_host(u'h1')
+        assert g1.has_host('h1')
+        assert not g1.has_host('u2')
+
+    def test_has_group(self):
+        g1, g2, g3 = Group('g1'), Group('g2'), Group('g3')
+        g2.add_child(g1)
+        g2.add_parent(g3)
+        assert g1.has_group("g2")
+        assert g2.has_group("g1")
+        assert g2.has_group("g3")
+        assert g3.has_group("g2")
+        assert not g3.has_group('u2')
+
+
 
 # Inventory
 inventory_data =[
@@ -530,15 +554,61 @@ class TestInventory(object):
         assert 'br-ext' == inventoryloader.groups['glance_api'].vars['external_bridge']
 
 
-    def test_add_existing_group_unauthorized(self):
+    def test_add_existing_group_unauthorized(self, inventoryloader):
         """
         Do not add a group if it's already existing
         if allow_update is set to False
+        and some variables are set.
         """
-        pass
+        assert 'glance_api' in inventoryloader.groups
+        glance_group = {'vars':{'glance_api_version': '2'} }
+        with pytest.raises(ValueError):
+            inventoryloader.add_group(u'glance_api', groupinfo=glance_group,
+                                      allow_update=False)
 
-    def test_delete_group(self):
-        pass
+    def test_add_existing_emptygroup_unauthorized(self, inventoryloader):
+        """
+        Do not throw an exception if the new group to add has no var
+        """
+        assert 'glance_api' in inventoryloader.groups
+        inventoryloader.add_group(u'glance_api', allow_update=False)
+        # but ensures variables didn't get overriden
+        assert 'management_bridge' in inventoryloader.groups['glance_api'].vars
+
+    def test_delete_group(self, inventoryloader):
+        """
+        Ensures a group can be deleted, no reparenting at all
+        """
+        cg = inventoryloader.count_groups()
+        ch = inventoryloader.count_hosts()
+        inventoryloader.del_group('glance_api')
+        assert 'glance_api' not in inventoryloader.groups['glance_all'].children
+        assert 'glance_api' not in inventoryloader.hosts['localhost'].groups
+        assert 'glance_api' not in inventoryloader.groups
+        assert inventoryloader.count_groups() == cg -1
+        assert inventoryloader.count_hosts() == ch
+    
+    def test_delete_group_reparent_hosts(self, inventoryloader):
+        """
+        Ensures the hosts of a group find a new parent
+        """
+        inventoryloader.del_group('glance_api', reparent_hosts=True)
+        assert inventoryloader.groups['glance_all'].has_host('localhost')
+        assert inventoryloader.hosts['localhost'].has_group('glance_all')
+
+    def test_delete_group_reparent_groups(self, inventoryloader):
+        """
+        Ensures the hosts of a group find a new parent
+        """
+        inventoryloader.del_group('glance_all', reparent_groups=True)
+        assert inventoryloader.groups['glance_api'].has_group('all')
+        assert inventoryloader.groups['all'].has_group('glance_api')
+
+    def test_delete_group_reparent_vars(self, inventoryloader):
+        """
+        Ensures the hosts of a group find a new parent
+        """
+        pass        
 
     def test_rename_group(self):
         pass
