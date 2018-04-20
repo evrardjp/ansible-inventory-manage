@@ -1,3 +1,4 @@
+import copy
 import json
 import pytest
 from ansible_inventory_manage.inventory import Host, Group, Inventory
@@ -517,6 +518,7 @@ inventory_data =[
     ),
 ]
 class TestInventory(object):
+    # IO Tests: Input testing
     @pytest.mark.parametrize("fname,groups,hosts", inventory_data)
     def test_input_loadjson(self, fname, groups, hosts):
         """
@@ -530,6 +532,10 @@ class TestInventory(object):
         assert inventory.count_groups() == len(groups)
         assert inventory.count_hosts() == len(hosts)
 
+    def test_malformed_input(self):
+        pass
+
+    #Group manipulation: Create
     def test_new_group(self, inventoryloader):
         """
         Ensure you can add a group to the inventory
@@ -537,6 +543,7 @@ class TestInventory(object):
         inventoryloader.add_group(u'newgroup')
         assert 'newgroup' in inventoryloader.groups
 
+    #Group manipulation: Update
     def test_add_existing_group(self, inventoryloader):
         """
         Adding a group with the same name as an
@@ -552,7 +559,6 @@ class TestInventory(object):
         inventoryloader.add_group(u'glance_api', {"vars": { u'external_bridge': u'br-ext'}})
         assert 'br-mgmt' == inventoryloader.groups['glance_api'].vars['management_bridge']
         assert 'br-ext' == inventoryloader.groups['glance_api'].vars['external_bridge']
-
 
     def test_add_existing_group_unauthorized(self, inventoryloader):
         """
@@ -575,6 +581,21 @@ class TestInventory(object):
         # but ensures variables didn't get overriden
         assert 'management_bridge' in inventoryloader.groups['glance_api'].vars
 
+    def test_rename_group(self, inventoryloader):
+        inventoryloader.rename_group('glance_api', 'glance_rocks')
+        assert 'glance_rocks' in inventoryloader.groups
+        assert 'glance_api' not in inventoryloader.groups
+
+    def test_priority(self, inventoryloader):
+        """
+        Test priority is well set in a group, and is taken
+        into consideration for merging group vars
+        """
+        inventoryloader.set_group_priority('glance_api',-1)
+        inventoryloader.add_group('glance_api',{'vars': {'management_bridge':'br_woot'}})
+        assert 'br_woot' == inventoryloader.groups['glance_api'].vars.get('management_bridge')
+
+    #Group manipulation: Delete
     def test_delete_group(self, inventoryloader):
         """
         Ensures a group can be deleted, no reparenting at all
@@ -587,7 +608,7 @@ class TestInventory(object):
         assert 'glance_api' not in inventoryloader.groups
         assert inventoryloader.count_groups() == cg -1
         assert inventoryloader.count_hosts() == ch
-    
+
     def test_delete_group_reparent_hosts(self, inventoryloader):
         """
         Ensures the hosts of a group find a new parent
@@ -608,53 +629,116 @@ class TestInventory(object):
         """
         Ensures the hosts of a group find a new parent
         """
-        pass        
+        inventoryloader.del_group('glance_api', reparent_vars=True)
+        assert 'management_bridge' in inventoryloader.groups['glance_all'].vars
 
-    def test_rename_group(self):
-        pass
+    #Host manipulation: CREATE
+    def test_create_new_host(self, inventoryloader):
+        inventoryloader.create_host('localhost3')
+        assert 'localhost3' in inventoryloader.hosts
 
-    def test_set_priority(self):
-        pass
+    def test_create_existing_host(self, inventoryloader):
+        with pytest.raises(Exception):
+            inventoryloader.create_host('localhost')
 
-    def test_add_host(self):
-        pass
+    def test_add_new_host(self, inventoryloader):
+        inventoryloader.add_host('localhost3')
+        assert 'localhost3' in inventoryloader.hosts
 
-    def test_remove_host(self):
-        pass
+    def test_add_existing_host(self, inventoryloader):
+        """
+        No exception thrown
+        """
+        inventoryloader.add_host('localhost')
+        assert 'localhost' in inventoryloader.hosts
 
-    def test_rename_host(self):
-        pass
+    #Host manipulation: Update
+    def test_update_new_host(self, inventoryloader):
+        with pytest.raises(Exception):
+            inventoryloader.update_host('localhost3')
 
-    def test_modify_groupvars(self):
-        pass
+    def test_update_existing_host_no_var(self, inventoryloader):
+        inventoryloader.update_host('localhost')
+        assert 'ansible_connection' in inventoryloader.hosts['localhost'].vars
 
-    def test_modify_hostvars(self):
-        pass
+    def test_update_existing_host_new_var(self, inventoryloader):
+        inventoryloader.update_host('localhost', {'extraparam':'extravalue'})
+        assert 'ansible_connection' in inventoryloader.hosts['localhost'].vars
+        assert 'extraparam' in inventoryloader.hosts['localhost'].vars
 
-    def test_change_ip(self):
-        pass
+    def test_rename_host(self, inventoryloader):
+        inventoryloader.rename_host('localhost', 'localhost3')
+        for group in inventoryloader.groups.values():
+            assert not group.has_host('localhost')
+        assert 'localhost3' in inventoryloader.hosts
+        assert inventoryloader.groups['glance_api'].has_host('localhost3')
 
+    #Host manipulation: Delete
+    def test_remove_host(self, inventoryloader):
+        inventoryloader.del_host('localhost')
+        assert 'localhost' not in inventoryloader.hosts
+
+    def test_remove_absent_host(self, inventoryloader):
+        """
+        Do not throw an exception on removal of not existing node
+        """
+        inventoryloader.del_host('localhost3')
+
+    # IO tests: Outputs
     def test_deserialize(self):
-        pass
-
-    def test_flatten_inventory(self):
-        pass
-
-    def test_io_equal(self):
         """ Ensures that parsing the inventory
         and outputting it without manipulation doesn't
         change the structure
         """
+        with open('tests/small.json', 'r') as fd:
+            fc =json.loads(fd.read())
+        input_inv = copy.deepcopy(fc)
+        inventoryloader = ansible_inventory_manage.inventory.Inventory()
+        inventoryloader.load_inventoryjson(fc)
+        output_inv = inventoryloader.write_output_json()
+        assert input_inv == output_inv
+
+    def test_flatten_inventory(self):
+        """
+        Resolves the structure back to only hosts,
+        merging variables along the way
+        """
         pass
 
     def test_output_has_hostvars(self):
-        pass
+        inventory = Inventory()
+        inventory.add_host('superhost', hostvars={'ansible_connection':'local'})
+        output = inventory.write_output_json()
+        assert output['_meta']['hostvars']['superhost']['ansible_connection'] == 'local'
 
-    def test_output_has_all_group(self):
-        pass
+    def test_output_always_has_all(self):
+        inventory = Inventory()
+        inventory.add_host('superhost', hostvars={'ansible_connection':'local'})
+        output = inventory.write_output_json()
+        assert 'all' in output
 
-    def test_output_has_expected_groups_present(self):
-        pass
+    def test_output_always_has_ungrouped(self):
+        inventory = Inventory()
+        inventory.add_host('superhost', hostvars={'ansible_connection':'local'})
+        output = inventory.write_output_json()
+        assert 'ungrouped' in output
+
+    def test_ungrouped_is_child_of_all(self):
+        inventory = Inventory()
+        inventory.add_host('superhost', hostvars={'ansible_connection':'local'})
+        output = inventory.write_output_json()
+        assert 'ungrouped' in output['all']['children']
+
+    def test_output_every_host_has_group(self):
+        inventory = Inventory()
+        inventory.add_host('superhost', hostvars={'ansible_connection':'local'})
+        output = inventory.write_output_json()
+        assert 'superhost' in output['ungrouped']['hosts']
+        inventory.add_group('awesome')
+        inventory.groups['awesome'].add_host(inventory.hosts['superhost'])
+        output = inventory.write_output_json()
+        assert 'superhost' in output['awesome'].get('hosts', [])
+        assert 'superhost' not in output['ungrouped'].get('hosts', [])
 
     def test_output_has_only_expected_groups(self):
         """ Computes the number of groups, and compares
