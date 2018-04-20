@@ -54,9 +54,9 @@ class InventoryObject(object):
     def set_var(self, varname, value):
         self.vars[varname] = value
 
-    def set_vars(self, vardict, prio=0):
+    def set_vars(self, newvars, prio=0):
         self.vars = dict(
-            mergedicts(self.vars, vardict, (self.priority, prio))
+            mergedicts(self.vars, newvars, (self.priority, prio))
         )
 
     @staticmethod
@@ -198,6 +198,11 @@ class Group(InventoryObject):
         while len(self.parents) != 0:
             self.parents[0].del_child(self)
 
+    def has_host(self, hostname):
+        return any([True for host in self.hosts if host.name == hostname])
+
+    def has_group(self, groupname):
+        return any([True for group in self.children + self.parents if group.name == groupname])
 
 class Host(InventoryObject):
 
@@ -228,20 +233,25 @@ class Host(InventoryObject):
             group = self.groups[0]
             group.del_host(self)
 
+    def has_group(self, groupname):
+        return any([True for group in self.groups if group.name == groupname])
+
 
 class Inventory(object):
     def __init__(self):
-        ungrouped = Group(u'ungrouped')
-        allgroup = Group(u'all')
-        allgroup.add_child(ungrouped)
-        self.groups = {u'all': allgroup, u'ungrouped': ungrouped}
+        self.groups = {}
         self.hosts = {}
+
+    def add_special_groups(self):
+        self.add_group('ungrouped')
+        self.add_group('all')
+        self.groups['all'].add_child(self.groups['ungrouped'])
 
     def load_inventoryjson(self, jsoncontent):
         # _meta is the only information outside group data
         hosts_metadata = jsoncontent.pop('_meta')
         for hostname, hostvars in hosts_metadata['hostvars'].items():
-            self.add_host(hostname, hostvars)
+            self.create_host(hostname, hostvars)
 
         # Groups are created after hosts, so that
         # group/host membership can be updated.
@@ -251,6 +261,8 @@ class Inventory(object):
             # Discover groups and their structure
             self.add_group(groupname, groupinfo)
 
+    # refactor add group
+    # to be split into add, create, and update
     def add_group(self, groupname, groupinfo=None, allow_update=True):
         """ This adds a group with groupname.
         By default it allows updating a new group groupname with
@@ -266,7 +278,7 @@ class Inventory(object):
             self._process_groupadd(groupname, groupinfo, is_new_group)
         elif groupinfo:
             # The group exists AND the updates are not allowed
-            raise KeyError
+            raise ValueError
 
     def _process_groupadd(self, groupname, groupinfo=None, is_new_group=False):
         try:
@@ -302,7 +314,8 @@ class Inventory(object):
 
     def del_group(self, groupname, **kwargs):
         if groupname in self.groups:
-            self.groups[groupname].delete(**kwargs)
+            grouptodelete = self.groups.pop(groupname)
+            grouptodelete.delete(**kwargs)
 
     def rename_group(self, groupname, newgroupname):
         if groupname in self.groups:
@@ -316,19 +329,39 @@ class Inventory(object):
         if groupname in self.groups:
             self.groups[groupname].priority = priority
 
-    def add_host(self, hostname=None, hostvars=None):
+    def add_host(self, hostname, hostvars=None, prio=0):
+        if hostname in self.hosts:
+            self.update_host(hostname, hostvars, prio)
+        else:
+            self.create_host(hostname, hostvars)
+
+    def create_host(self, hostname, hostvars=None):
         if hostname in self.hosts:
             raise Exception("Host already exists")
-        self.hosts[hostname] = Host(name=hostname)
+        else:
+            self.hosts[hostname] = Host(name=hostname)
         if hostvars:
             self.hosts[hostname].set_vars(hostvars, 0)
 
+    # Refactor this to have hostvars and prio optional, to
+    # not always override prio
+    def update_host(self, hostname, hostvars=None, prio=0):
+        """ Update host variables, and priority of a host"""
+        try:
+            self.hosts[hostname].priority = prio
+        except KeyError as exc:
+            raise Exception("Host %s does not exist. Traceback: %s" % (hostname,exc))
+        if hostvars:
+            self.hosts[hostname].set_vars(hostvars, prio)
 
     def del_host(self, hostname):
-        if hostname in self.hosts:
+        try:
             # No need to pass kwargs, removing host doesn't need
             # reparenting or anything.
             self.hosts[hostname].delete()
+            del self.hosts[hostname]
+        except KeyError:
+            pass
 
     def rename_host(self, hostname, newhostname):
         self.hosts[newhostname] = self.hosts.pop(hostname)
@@ -342,3 +375,42 @@ class Inventory(object):
         Doesn't count 'all' and 'ungrouped' special groups.
         """
         return len(self.groups)-2
+
+    def write_output_json(self):
+        # Ensure special groups are present
+        self.add_special_groups()
+
+        # Prepare output dictionary
+        output = dict()
+        output[u'_meta'] = {u'hostvars': {}}
+        for hostname, hostdata in self.hosts.items():
+            # hostdata is the host object, containing variables as
+            # a dictionary ready to use
+            output[u'_meta'][u'hostvars'][hostname] = hostdata.vars
+            # In case of a valid but not standard inventory
+            # you might have no "ungrouped" group.
+            # So loading that would result in hosts not
+            # part of this group, but not part of any other
+            # group.
+            # For these hosts, make sure they are in ungrouped
+            if len(hostdata.groups) == 0:
+                hostdata.add_group(self.groups[u'ungrouped'])
+            # But also make sure ungrouped is not still present
+            # if additional groups were added
+            else:
+                hostdata.del_group(self.groups[u'ungrouped'])
+        # Now output group mapping
+        # Keep as value only ['children','vars', 'hosts']
+        # of each group
+        for groupname, groupdata in self.groups.items():
+            output.update({groupname: {}})
+            kids = [ child.name for child in groupdata.children]
+            if kids:
+                output[groupname].update({u'children': kids})
+            machines = [host.name for host in groupdata.hosts]
+            if machines:
+                output[groupname].update({u'hosts': machines})
+            if groupdata.vars:
+                output[groupname].update({u'vars': groupdata.vars})
+            print(output)
+        return output
