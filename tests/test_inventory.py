@@ -740,29 +740,42 @@ class TestInventory(object):
         assert 'superhost' in output['awesome'].get('hosts', [])
         assert 'superhost' not in output['ungrouped'].get('hosts', [])
 
-    def test_output_has_only_expected_groups(self):
+    def test_output_vs_expectations(self):
         """ Computes the number of groups, and compares
         to expected value
         """
-        pass
-
-    def test_output_has_expected_hostvar(self):
-        pass
-
-    def test_output_has_expected_hosts(self):
-        pass
-
-    def test_output_has_only_expected_hosts(self):
-        """ Computes the number of hosts, and compares
-        to expected value
-        """
-        pass
-
-    def test_output_has_expected_groups_for_host(self):
-        pass
+        inventory = Inventory()
+        inventory.add_host('superhost', hostvars={'ansible_connection':'local'})
+        inventory.add_host('superhost2', hostvars={'ansible_connection':'local'})
+        inventory.add_group('awesome')
+        inventory.add_group('awesome2')
+        inventory.groups['awesome'].add_host(inventory.hosts['superhost'])
+        inventory.groups['awesome'].add_host(inventory.hosts['superhost2'])
+        output = inventory.write_output_json()
+        assert len(output['_meta']['hostvars']) == 2
+        output.pop('_meta')
+        assert len(output) == 4 #awesome, awesome2, all, ungrouped
 
     def test_output_has_no_group_twice(self):
-        pass
+        inventory = Inventory()
+        inventory.add_host('superhost', hostvars={'ansible_connection':'local'})
+        inventory.add_host('superhost', hostvars={'ansible_connection':'local'})
+        inventory.add_group('awesome')
+        inventory.add_group('awesome')
+        inventory.groups['awesome'].add_host(inventory.hosts['superhost'])
+        inventory.groups['awesome'].add_host(inventory.hosts['superhost'])
+        output = inventory.write_output_json()
+        output.pop('_meta')
+        assert len(output) == 3 #awesome, all, ungrouped
 
     def test_output_has_no_host_twice(self):
-        pass
+        inventory = Inventory()
+        inventory.add_host('superhost', hostvars={'ansible_connection':'local'})
+        inventory.add_host('superhost', hostvars={'ansible_connection':'local'})
+        inventory.add_group('awesome')
+        inventory.add_group('awesome')
+        inventory.groups['awesome'].add_host(inventory.hosts['superhost'])
+        inventory.groups['awesome'].add_host(inventory.hosts['superhost'])
+        output = inventory.write_output_json()
+        assert len(output['_meta']['hostvars']) == 1
+
