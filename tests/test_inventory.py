@@ -778,4 +778,3 @@ class TestInventory(object):
         inventory.groups['awesome'].add_host(inventory.hosts['superhost'])
         output = inventory.write_output_json()
         assert len(output['_meta']['hostvars']) == 1
-
