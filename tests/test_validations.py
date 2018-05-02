@@ -1,4 +1,4 @@
-import ansible_inventory_manage.validations as validate
+import ansible_inventory_manage.inventory as validate
 
 
 class TestNames(object):

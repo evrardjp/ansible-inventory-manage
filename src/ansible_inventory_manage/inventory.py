@@ -2,7 +2,22 @@ import itertools
 import copy
 
 
-import ansible_inventory_manage.validations as validate
+from past.builtins import basestring    # pip install future
+
+def is_valid_name(name=None):
+    if name and isinstance(name, basestring):
+        return True
+    else:
+        return False
+
+
+def is_valid_host(name=None):
+    if is_valid_name(name) and \
+       len(name) < 253 and \
+       name.replace('_', '').replace('-', '').replace('.', '').isalnum():
+        return True
+    else:
+        return False
 
 
 def mergedicts(dict1, dict2, prios=(0, 0)):
@@ -80,7 +95,7 @@ class Group(InventoryObject):
                  'hosts', 'priority']
 
     def __init__(self, name=None):
-        if not validate.is_valid_name(name):
+        if not is_valid_name(name):
             raise Exception("Not a valid name")
         else:
             super(Group, self).__init__(name)
@@ -209,7 +224,7 @@ class Host(InventoryObject):
     __slots__ = ['name', 'groups', 'vars', 'priority']
 
     def __init__(self, name=None):
-        if not validate.is_valid_host(name):
+        if not is_valid_host(name):
             raise Exception("Invalid host name")
         else:
             super(Host, self).__init__(name)
