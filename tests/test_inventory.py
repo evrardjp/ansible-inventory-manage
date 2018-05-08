@@ -657,6 +657,21 @@ class TestInventory(object):
         assert inventoryloader.groups['glance_registry'].has_host('localhost2')
         assert "management_bridge" in inventoryloader.groups['glance_registry'].vars
 
+    def test_convert_to_existing_group2(self, inventoryloader):
+        """
+        Ensure group_api is deleted and its content is in glance_registry,
+        while registry keeps its specifics
+        """
+        inventoryloader.convert_group('glance_api', 'glance_all')
+        inventoryloader.convert_group('glance_registry', 'glance_all')
+        assert 'glance_api' not in inventoryloader.groups
+        assert 'glance_registry' not in inventoryloader.groups
+        assert not inventoryloader.groups['glance_all'].has_group('glance_api')
+        assert not inventoryloader.groups['glance_all'].has_group('glance_registry')
+        assert inventoryloader.groups['glance_all'].has_host('localhost')
+        assert inventoryloader.groups['glance_all'].has_host('localhost2')
+        assert "management_bridge" in inventoryloader.groups['glance_all'].vars
+
     #Host manipulation: CREATE
     def test_create_new_host(self, inventoryloader):
         inventoryloader.create_host('localhost3')

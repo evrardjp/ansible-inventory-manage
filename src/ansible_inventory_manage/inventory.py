@@ -354,12 +354,12 @@ class Inventory(object):
         Else it's just the creation of a new group that happens.
         """
         groupinfo = dict()
-        groupinfo['children'] = [child.name for child in self.groups[groupname].children]
-        groupinfo['parents'] = [parent.name for parent in self.groups[groupname].parents]
+        groupinfo['children'] = [child.name for child in self.groups[groupname].children if child is not self.groups.get(newgroupname, False) ]
+        groupinfo['parents'] = [parent.name for parent in self.groups[groupname].parents if parent is not self.groups.get(newgroupname, False)]
         groupinfo['vars'] = self.groups[groupname].vars
         groupinfo['hosts'] = [host.name for host in self.groups[groupname].hosts]
-        self.add_group(newgroupname, groupinfo=groupinfo)
         self.del_group(groupname)
+        self.add_group(newgroupname, groupinfo=groupinfo)
 
     def set_group_priority(self, groupname, priority):
         """ Allows the user to set a priority to a group, for variable
