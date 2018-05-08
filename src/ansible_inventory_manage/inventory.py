@@ -197,6 +197,12 @@ class Group(InventoryObject):
 
     def delete(self, reparent_groups=False,
                reparent_hosts=False, reparent_vars=False):
+        """
+        Wipes a group of the surface of the earth.
+        Allow extreme kindness by reparenting data if
+        necessary.
+        """
+
         while len(self.hosts) != 0:
             if reparent_hosts:
                 for parent in self.parents:
@@ -333,9 +339,27 @@ class Inventory(object):
             grouptodelete.delete(**kwargs)
 
     def rename_group(self, groupname, newgroupname):
-        if groupname in self.groups:
+        if groupname in self.groups and newgroupname not in self.groups:
             self.groups[newgroupname] = self.groups.pop(groupname)
             self.groups[newgroupname].name = newgroupname
+
+    def convert_group(self, groupname, newgroupname):
+        """
+        Convert is not a delete with reparent.
+        It's really ensuring a group named newgroupname exists
+        and contains the content of the old group named groupname.
+        If the newgroupname is an already existing group, then
+        a merge should happen, merging the old group groupname into
+        newgroupname, merging its vars, children, parents, and hosts.
+        Else it's just the creation of a new group that happens.
+        """
+        groupinfo = dict()
+        groupinfo['children'] = [child.name for child in self.groups[groupname].children]
+        groupinfo['parents'] = [parent.name for parent in self.groups[groupname].parents]
+        groupinfo['vars'] = self.groups[groupname].vars
+        groupinfo['hosts'] = [host.name for host in self.groups[groupname].hosts]
+        self.add_group(newgroupname, groupinfo=groupinfo)
+        self.del_group(groupname)
 
     def set_group_priority(self, groupname, priority):
         """ Allows the user to set a priority to a group, for variable
@@ -379,8 +403,11 @@ class Inventory(object):
             pass
 
     def rename_host(self, hostname, newhostname):
-        self.hosts[newhostname] = self.hosts.pop(hostname)
-        self.hosts[newhostname].name = newhostname
+        if newhostname not in self.hosts:
+            self.hosts[newhostname] = self.hosts.pop(hostname)
+            self.hosts[newhostname].name = newhostname
+        else:
+            raise Exception("Host %s already exists" % (newhostname))
 
     def count_hosts(self):
         return len(self.hosts)
