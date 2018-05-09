@@ -647,7 +647,7 @@ class TestInventory(object):
 
     def test_convert_to_existing_group(self, inventoryloader):
         """
-        Ensure group_api is deleted and its content is in glance_registry,
+        Ensure glance_api is deleted and its content is in glance_registry,
         while registry keeps its specifics
         """
         inventoryloader.convert_group('glance_api', 'glance_registry')
@@ -659,8 +659,8 @@ class TestInventory(object):
 
     def test_convert_to_existing_group2(self, inventoryloader):
         """
-        Ensure group_api is deleted and its content is in glance_registry,
-        while registry keeps its specifics
+        Ensure glance_{api|registry} is deleted and their contents are inside
+        glance_all. This is a test to see if there is parenting/loop issues.
         """
         inventoryloader.convert_group('glance_api', 'glance_all')
         inventoryloader.convert_group('glance_registry', 'glance_all')
