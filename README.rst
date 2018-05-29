@@ -38,3 +38,13 @@ A standard inventory json is like this:
 
 This lib allows the loading of multiple jsons into memory, and manipulate the
 inventory objects, and vars precedence.
+
+Usage will explained in documentation soon.
+
+You can submit patches with git-review and gerrithub (``pip install git-review``)
+
+  # git clone https://review.gerrithub.io/evrardjp/ansible-inventory-manage
+  # git review -s
+  # git checkout -b my_super_patch
+  # git review -f
+
