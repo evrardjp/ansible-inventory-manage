@@ -6,18 +6,21 @@ VERSION = '0.0.1'
 
 setup(
     name='ansible_inventory_manage',
-    version=VERSION,
     author='Jean-Philippe Evrard',
     author_email='jean-philippe@evrard.me',
     description='Ansible Inventory CRUD library',
+    install_requires=['future'],
+    license='Apache License 2.0',
     long_description=open('README.rst').read(),
     packages=find_packages('src/'),
     package_dir={'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
     tests_require=['pytest', 'tox'],
-    install_requires=['future'],
+    url='https://github.com/evrardjp/ansible-inventory-manage',
+    version=VERSION,
     classifiers=[
-        'Environment :: OpenStack',
+        'Development Status :: 2 - Pre-Alpha',
+        'Environment :: Console',
         'Intended Audience :: Information Technology',
         'Intended Audience :: System Administrators',
         'License :: OSI Approved :: Apache Software License',
@@ -27,5 +30,6 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
     ]
 )
