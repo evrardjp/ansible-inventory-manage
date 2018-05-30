@@ -2,8 +2,15 @@ language: python
 sudo: false
 cache: pip
 python:
-  - "2.7"
-  - "3.5"
-  - "3.6"
+- '2.7'
+- '3.5'
+- '3.6'
 install: pip install tox-travis
 script: tox
+deploy:
+  provider: pypi
+  user: evrardjp
+  password:
+    secure: fIOWhfO1AvNtY9mfI9rmSDtirUFioIWOdlTCYU6h+g7nRq1Zhzhc8Uhas4Gt43E5Wc5Akh5rKj4QcCQw0pQ1Zjjqo5fjhW8lVRIDEX+L4R5j0XJX25cGv1Zj5SMXkj/2eGQqM51yON2NOLZ4NxTrdRPlMdauYIQ0if6dFPU1frPC9vvOun2xmwnjUa8FiLP2R1lLmAz/i5tAU6jyZlf+kzjThQoSdmJzh3iatWM6zvlQTUw8XL9VMeFetXWrBjB9K+33c9vPTzb/Wkfsm5++M4ADSCCFgJJI5LMZxbq1Rt3emtIaAON1uB9P+4p3EFyxRUL1zYRrqp2xZQvrKXJ7S12H2NhC0MMRg8zRq9ZHHczhQOcoVkToTwds9Mhih+gdZK5T8rA7+OFAFSA1v/20GGR+IonFPB+BtQgl6n7vixKciyWh7md2F7f3utAUVgoRuQQ1rgRn8frPAX2Ja5mKJGuYN/rH1ZIXzglJA5vZsBFI6PpXpM8q9YVLldbWpGi7IxAhdbQBYHfgtoh+1dGnxGclRCz9cASIVMyGCRrQ76hax/dQMuRaMEYG4oszPY9Gj4BGycjuLfakbek4WZ9Kv4psW2zsgkbOCsjA1c515iuiITl34hXDzzDhETn7rRGevSu/InvYMCKrQUvo/mSrzXj6cH3H8MDEbIfk7ThUzJU=
+  on:
+    tags: true
